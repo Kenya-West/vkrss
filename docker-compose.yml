@@ -1,0 +1,8 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: vkrss
+    ports:
+      - "80:80"
