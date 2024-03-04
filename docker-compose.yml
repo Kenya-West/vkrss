@@ -1,8 +1,51 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  web:
-    build: .
-    container_name: vkrss
+  php:
+    image: php:7.4-apache
+    container_name: php
+    volumes:
+        - ./src:/var/www/html
     ports:
-      - "80:80"
+        - "${VKRSS_PORT}:80"
+    networks:
+      - vkrss-network
+
+  webserver:
+    image: nginx:mainline-alpine
+    container_name: webserver
+    restart: unless-stopped
+    volumes:
+      - ./src:/app
+      - ./templates:/etc/nginx/templates
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+    ports:
+      - "${FEED_PORT_HTTP}:80"
+      - "${FEED_PORT_HTTPS}:443"
+    env_file:
+      - .env
+    links:
+      - php
+    networks:
+      - vkrss-network
+
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+    depends_on:
+      - webserver
+    command: certonly --non-interactive --webroot --webroot-path=/var/www/html --email ${EMAIL} --agree-tos --no-eff-email --force-renewal -d ${DOMAIN}
+    networks:
+      - vkrss-network
+
+volumes:
+  certbot-etc:
+  certbot-var:
+
+networks:
+  vkrss-network:
+    driver: bridge
