@@ -4,8 +4,8 @@ map $arg_vkrss_access_token $access_allowed {
 }
 
 server {
-    listen 80;
-    listen [::]:80;
+    listen ${FEED_PORT_HTTP};
+    listen [::]:${FEED_PORT_HTTP};
     server_name ${DOMAIN};
 
     index index.php index.html;
@@ -16,16 +16,7 @@ server {
     error_log  /var/log/nginx/error.log info;
 
     include ssl.conf*;
-
-    # Redirect all HTTP traffic to HTTPS.
-    # Now disabled for development purposes
-    location / {
-        return 301 https://$host$request_uri;
-    }
-
-    location ~ /.well-known/acme-challenge {
-        allow all;
-    }
+    include certbot.conf*;
 
     location ~ ^/${FEED_PATH}/(.+\.php)$ {
         if ($access_allowed = 0) {

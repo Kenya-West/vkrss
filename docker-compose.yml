@@ -21,8 +21,9 @@ services:
       - certbot-etc:/etc/letsencrypt
       - certbot-var:/var/lib/letsencrypt
     ports:
-      - "${FEED_PORT_HTTP}:80"
-      - "${FEED_PORT_HTTPS}:443"
+      - "80:80"
+      - "${FEED_PORT_HTTP}:${FEED_PORT_HTTP}"
+      - "${FEED_PORT_HTTPS}:${FEED_PORT_HTTPS}"
     env_file:
       - .env
     links:
