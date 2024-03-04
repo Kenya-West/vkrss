@@ -1,6 +1,9 @@
+/ssl/
 .*
 test*
 *.sh
 *.log
 *.json
 *.debug
+*.bak
+!.env
