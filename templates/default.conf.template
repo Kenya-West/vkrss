@@ -4,12 +4,10 @@ map $arg_vkrss_access_token $access_allowed {
 }
 
 server {
-    listen 80;
-    listen [::]:80;
-    # TODO
-    listen 443 ssl;
-    http2 on;
+    listen ${FEED_PORT_HTTP};
+    listen [::]:${FEED_PORT_HTTP};
     server_name ${DOMAIN};
+
     index index.php index.html;
     root /app;
 
@@ -17,21 +15,8 @@ server {
     access_log /var/log/nginx/access.log;
     error_log  /var/log/nginx/error.log info;
 
-    # TODO
-    ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-
-    # Redirect all HTTP traffic to HTTPS.
-    # Now disabled for development purposes
-    location / {
-        return 301 https://$host$request_uri;
-    }
-
-    location ~ /.well-known/acme-challenge {
-        allow all;
-    }
+    include ssl.conf*;
+    include certbot.conf*;
 
     location ~ ^/${FEED_PATH}/(.+\.php)$ {
         if ($access_allowed = 0) {
