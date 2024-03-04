@@ -1,7 +1,7 @@
 server {
     listen 80;
     
-    root /app;
+    root /var/www/html;
 
     location ~ /.well-known/acme-challenge {
         allow all;

@@ -17,6 +17,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./src:/app
+      - ./src:/var/www/html
       - ./templates:/etc/nginx/templates
       - certbot-etc:/etc/letsencrypt
       - certbot-var:/var/lib/letsencrypt
