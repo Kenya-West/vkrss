@@ -80,7 +80,7 @@ In logs available by `docker compose logs certbot` command, you should see somet
 
 4. After successful certificates installation, un-comment those lines with `### ` characters inside `templates/default.conf.template` by `nano` or `vi`/`vim` editors, or by executing command:
 ```sh
-sed -i 's/^### //' templates/default.conf.template
+sed -i 's/### //' templates/default.conf.template
 ```
 
 5. Restart NGINX:
@@ -497,7 +497,7 @@ docker compose up -d certbot webserver
 
 4. После успешной установки сертификатов раскомментируйте строки, начинающиеся с тройных `### ` в файле `templates/default.conf.template` редактором `nano` или `vi`/`vim`, либо командой:
 ```sh
-sed -i 's/^### //' templates/default.conf.template
+sed -i 's/### //' templates/default.conf.template
 ```
 
 5. Перезапустите NGINX:
