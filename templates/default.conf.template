@@ -6,17 +6,28 @@ map $arg_vkrss_access_token $access_allowed {
 server {
     listen ${FEED_PORT_HTTP};
     listen [::]:${FEED_PORT_HTTP};
+    ### listen ${FEED_PORT_HTTPS} ssl;
+    ### http2 on;
+
     server_name ${DOMAIN};
 
     index index.php index.html;
     root /app;
 
+    ### ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ### ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+    ### ssl_protocols TLSv1.2 TLSv1.3;
+    ### ssl_ciphers HIGH:!aNULL:!MD5;
+
     # Access and error logs.
     access_log /var/log/nginx/access.log;
     error_log  /var/log/nginx/error.log info;
 
-    include ssl.conf*;
     include certbot.conf*;
+
+    ### location / {
+    ###     return 301 https://$host$request_uri;
+    ### }
 
     location ~ ^/${FEED_PATH}/(.+\.php)$ {
         if ($access_allowed = 0) {

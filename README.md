@@ -78,9 +78,9 @@ docker compose up -d certbot
 In logs available by `docker compose logs certbot` command, you should see something like this:
 ![Successful SSL certificate installation for given domain](https://media.geeksforgeeks.org/wp-content/uploads/20201101164714/Screenshotfrom20201101162550.png "Successful SSL certificate installation for given domain")
 
-4. After successful certificates installation, un-comment everything inside `templates/ssl.conf.template` by `nano` or `vi`/`vim` editors, or by executing command:
+4. After successful certificates installation, un-comment those lines with `### ` characters inside `templates/default.conf.template` by `nano` or `vi`/`vim` editors, or by executing command:
 ```sh
-sed -i 's/^# //' templates/ssl.conf.template
+sed -i 's/^### //' templates/default.conf.template
 ```
 
 5. Restart NGINX:
@@ -495,9 +495,9 @@ docker compose up -d certbot webserver
 В логах по команде `docker compose logs certbot` должно быть сообщение об успешном получении сертификатов:
 ![Успешная установка сертификата для домена](https://media.geeksforgeeks.org/wp-content/uploads/20201101164714/Screenshotfrom20201101162550.png "Успешная установка сертификата для домена")
 
-4. После успешной установки сертификатов раскомментируйте файл `templates/ssl.conf.template` редактором `nano` или `vi`/`vim`, либо командой:
+4. После успешной установки сертификатов раскомментируйте строки, начинающиеся с тройных `### ` в файле `templates/default.conf.template` редактором `nano` или `vi`/`vim`, либо командой:
 ```sh
-sed -i 's/^# //' templates/ssl.conf.template
+sed -i 's/^### //' templates/default.conf.template
 ```
 
 5. Перезапустите NGINX:
