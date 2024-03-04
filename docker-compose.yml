@@ -34,6 +34,7 @@ services:
     image: certbot/certbot
     container_name: certbot
     volumes:
+      - ./src:/var/www/html
       - certbot-etc:/etc/letsencrypt
       - certbot-var:/var/lib/letsencrypt
     depends_on:
