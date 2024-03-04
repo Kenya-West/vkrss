@@ -78,7 +78,17 @@ docker compose up -d certbot
 In logs available by `docker compose logs certbot` command, you should see something like this:
 ![Successful SSL certificate installation for given domain](https://media.geeksforgeeks.org/wp-content/uploads/20201101164714/Screenshotfrom20201101162550.png "Successful SSL certificate installation for given domain")
 
-4. Launch the rest:
+4. After successful certificates installation, un-comment everything inside `templates/ssl.conf.template` by `nano` or `vi`/`vim` editors, or by executing command:
+```sh
+sed -i 's/^# //' templates/ssl.conf.template
+```
+
+5. Restart NGINX:
+```sh
+docker compose restart webserver
+```
+
+6. Launch the rest:
 ```sh
 docker compose up -d php webserver
 ```
@@ -480,14 +490,24 @@ VK_ACCESS_TOKEN=                    # Access token to access VK API. You can get
 ```
 3. Запустите certbot для получения SSL-сертификатов:
 ```sh
-docker compose up -d certbot
+docker compose up -d certbot webserver
 ```
 В логах по команде `docker compose logs certbot` должно быть сообщение об успешном получении сертификатов:
 ![Успешная установка сертификата для домена](https://media.geeksforgeeks.org/wp-content/uploads/20201101164714/Screenshotfrom20201101162550.png "Успешная установка сертификата для домена")
 
-4. Запустите остальное:
+4. После успешной установки сертификатов раскомментируйте файл `templates/ssl.conf.template` редактором `nano` или `vi`/`vim`, либо командой:
 ```sh
-docker compose up -d php webserver
+sed -i 's/^# //' templates/ssl.conf.template
+```
+
+5. Перезапустите NGINX:
+```sh
+docker compose restart webserver
+```
+
+6. Запустите остальное:
+```sh
+docker compose up -d php
 ```
 
 5. По умолчанию сервер PHP доступен на порте `9900`, сервер NGINX на `8081` для HTTP и `8082` для HTTPS, если вы не указали иное в файле `.env`.
