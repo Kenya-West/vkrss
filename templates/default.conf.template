@@ -8,13 +8,14 @@ server {
     listen [::]:80;
     server_name ${DOMAIN};
 
-    include ssl.conf*;
     index index.php index.html;
     root /app;
 
     # Access and error logs.
     access_log /var/log/nginx/access.log;
     error_log  /var/log/nginx/error.log info;
+
+    include ssl.conf*;
 
     # Redirect all HTTP traffic to HTTPS.
     # Now disabled for development purposes
