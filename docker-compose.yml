@@ -4,51 +4,16 @@ services:
   php:
     image: php:7.4-apache
     container_name: php
+    cpus: "0.5"
+    mem_limit: 200m
     volumes:
         - ./src:/var/www/html
     ports:
-        - "${VKRSS_PORT}:80"
+        - "${VKRSS_PORT}:9900"
     networks:
-      - vkrss-network
-
-  webserver:
-    image: nginx:mainline-alpine
-    container_name: webserver
+      - caddy
     restart: unless-stopped
-    volumes:
-      - ./src:/app
-      - ./src:/var/www/html
-      - ./templates:/etc/nginx/templates
-      - certbot-etc:/etc/letsencrypt
-      - certbot-var:/var/lib/letsencrypt
-    ports:
-      - "80:80"
-      - "${FEED_PORT_HTTP}:${FEED_PORT_HTTP}"
-      - "${FEED_PORT_HTTPS}:${FEED_PORT_HTTPS}"
-    env_file:
-      - .env
-    links:
-      - php
-    networks:
-      - vkrss-network
-
-  certbot:
-    image: certbot/certbot
-    container_name: certbot
-    volumes:
-      - ./src:/var/www/html
-      - certbot-etc:/etc/letsencrypt
-      - certbot-var:/var/lib/letsencrypt
-    depends_on:
-      - webserver
-    command: certonly --non-interactive --webroot --webroot-path=/var/www/html --email ${EMAIL} --agree-tos --no-eff-email --force-renewal -d ${DOMAIN}
-    networks:
-      - vkrss-network
-
-volumes:
-  certbot-etc:
-  certbot-var:
 
 networks:
-  vkrss-network:
-    driver: bridge
+  caddy:
+    external: true
