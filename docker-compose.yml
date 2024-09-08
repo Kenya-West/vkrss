@@ -8,10 +8,20 @@ services:
     mem_limit: 200m
     volumes:
         - ./src:/var/www/html
-    ports:
-        - "${VKRSS_PORT}:9900"
     networks:
       - caddy
+    labels:
+      caddy: ${DOMAIN}:${VKRSS_PORT} ${DOMAIN}:${VKRSS_PORT2}
+      caddy.import: "logging ${DOMAIN}"
+      caddy.handle_path: "/${FEED_PATH}/*"
+      caddy.handle_path.@tokenCheck.query: "vkrss_access_token=${VKRSS_ACCESS_TOKEN}"
+      caddy.handle_path.handle_0: "@tokenCheck"
+      caddy.handle_path.handle_0.0_rewrite: "* /{path.2}"
+      caddy.handle_path.handle_0.0_uri: "replace /api/vkrss/ /"
+      caddy.handle_path.handle_0.1_uri: "replace vkrss_access_token=${VKRSS_ACCESS_TOKEN} access_token=${VK_ACCESS_TOKEN}"
+      caddy.handle_path.handle_0.1_reverse_proxy: "{{upstreams 80}}"
+      caddy.handle_path.rewrite_1: "/${FEED_PATH}/* /"
+      caddy.reverse_proxy: "{{upstreams 80}}"
     restart: unless-stopped
 
 networks:
