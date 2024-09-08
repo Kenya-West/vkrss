@@ -47,12 +47,55 @@
   * for SOCKS4 proxy: PHP>=5.3 with `cURL`>=7.10 extension is required;
   * for SOCKS4A proxy: PHP>=5.5.23 or PHP>=5.6.7 (7.X included)
     with `cURL`>=7.18 extension is required.
+* You should own a (sub)domain and point A record to IP-address of the server the repository should run on.
 
 If script returns page with non-200 HTTP status then some problem was occurred:
 detailed problem information is described in the HTTP status phrase,
-in the script output and in the server/interpreter logfile.
+in the script output and in the server/interpreter logfile. \
+To look at PHP server last 50 records in logs, you can try the command:
+```sh
+docker compose logs -t -n 50 php
+```
 
-## Parameters
+## Launching
+
+1. Clone the repo: `git clone git@github.com:Kenya-West/vkrss.git`;
+2. Fill `.env` file with the content from `.env.example` or paste the following:
+```dotenv
+DOMAIN=                             # Your domain
+EMAIL=                              # E-mail that was set with your domain
+FEED_PORT_HTTP=8081                 # Port to access Feed server without SSL (CAUTION: this is not secure! Use only for testing purposes!)
+FEED_PORT_HTTPS=443                 # Port to access Feed server with SSL
+FEED_PATH=api/vkrss                 # Subpath to access Feed server. Without leading "/" slash. Leave empty by default
+VKRSS_PORT=9900                     # Port to access VKRSS server through NGINX (it adds access token)
+VKRSS_ACCESS_TOKEN=vkrssaccesstoken # Access token to access VKRSS server (NGINX). It's used to protect VKRSS server from unauthorized access
+VK_ACCESS_TOKEN=                    # Access token to access VK API. You can get it from VK API settings
+```
+3. Launch certbot to get SSL certificates:
+```sh
+docker compose up -d certbot
+```
+In logs available by `docker compose logs certbot` command, you should see something like this:
+![Successful SSL certificate installation for given domain](https://media.geeksforgeeks.org/wp-content/uploads/20201101164714/Screenshotfrom20201101162550.png "Successful SSL certificate installation for given domain")
+
+4. After successful certificates installation, un-comment those lines with `### ` characters inside `templates/default.conf.template` by `nano` or `vi`/`vim` editors, or by executing command:
+```sh
+sed -i 's/### //' templates/default.conf.template
+```
+
+5. Restart NGINX:
+```sh
+docker compose restart webserver
+```
+
+6. Launch the rest:
+```sh
+docker compose up -d php webserver
+```
+
+5. PHP server is available at `9900` port, NGINX is on `8081` for HTTP and `8082` for HTTPS respectively. These are default values, if otherwise not set in `.env`.
+
+## PHP server parameters
 Main `index.php` script accepts the below GET-parameters.
 
 [`id`](#eng-id) and [`access_token`](#eng-access-token) 
@@ -237,6 +280,27 @@ are required, another parameters are optional.
   Proxy type, login and password can be passed through another parameters:
   `proxy_type`, `proxy_login` and `proxy_password` respectively.
 
+## NGINX server options
+PHP is launched on its default port `9900`, the NGINX server is live on ports `8081` for HTTP and `8082` for HTTPS, respectively.
+
+The NGINX server main purpose is to save the user from having to explicitly specify the `access_token` (a VK standalone application's) for the case lost or changed. IF NGINX server is not used and something happens with `access_token`, all links to subscriptions in the RSS service/RSS client will have to be changed. This is inconvenient, that is why NGINX server exists.
+
+Instead of `access_token`, this server accepts `vkrss_access_token`, defined in the `.env` file under the line `VKRSS_ACCESS_TOKEN`. Default value: `vkrssaccesstoken`.
+
+After receiving the request, the NGINX server redirects it to the PHP server with the `access_token` (defined in the `.env` file under the line `VK_ACCESS_TOKEN`) and receives the VK feed.
+
+The NGINX server will also be accessible along the path defined in the `.env` file under the `FEED_PATH` line. Default value: `api/vkrss`.
+
+So, for example, these two queries are similar:
+
+```php
+index.php?id=club1&access_token=XXXXXXXXX
+```
+And
+```php
+api/vkrss/index.php?id=club1&vkrss_access_token=YYYYYYYYYY
+```
+
 ## <a name="eng-user-access-token"></a> How To Get Permanent User Access Token
 [This authorization flow](https://vk.com/dev/authcode_flow_user) is
 preferred getting user access token for the server side access to the walls.
@@ -295,6 +359,30 @@ index.php?global_search=query&count=300&access_token=XXXXXXXXX # search posts th
 index.php?id=club1&allow_embedded_video&access_token=XXXXXXXXX   # embed playable videos into RSS items' description
 index.php?id=-1&count=30&repost_delimiter=<hr><hr>Written by {author}:&access_token=XXXXXXXXX
 index.php?id=pitertransport&donut&access_token=XXXXXXXXX  # RSs feed contains VK Donut posts and regular posts
+```
+or the same for NGINX server:
+```php
+api/vkrss/index.php?id=apiclub&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?id=-1&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?id=id1&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?id=club1&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?id=club1&disable_html&vkrss_access_token=YYYYYYYYY   # no HTML formatting in RSS item descriptions
+api/vkrss/index.php?id=apiclub&count=100&include=newsfeed&vkrss_access_token=YYYYYYYYY   # feed contains only posts with substring 'newsfeed'
+api/vkrss/index.php?id=apiclub&count=100&exclude=newsfeed&vkrss_access_token=YYYYYYYYY   # feed contains only posts without substring 'newsfeed'
+api/vkrss/index.php?id=apiclub&proxy=localhost:8080&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?id=apiclub&proxy=localhost:8080&proxy_type=https&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?id=apiclub&proxy=https%3A%2F%2Flocalhost:8080&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?id=club1&owner_only&vkrss_access_token=YYYYYYYYY   # feed contains only posts by community
+api/vkrss/index.php?id=club1&owner_only&allow_signed=false&vkrss_access_token=YYYYYYYYY   # feed contains only posts by community
+                                                                          # that's without signature
+api/vkrss/index.php?id=club1&non_owner_only&vkrss_access_token=YYYYYYYYY   # feed contains only posts by users
+api/vkrss/index.php?id=club1&non_owner_only&allow_signed&vkrss_access_token=YYYYYYYYY   # feed contains only posts by users
+                                                                        # and community posts with signature
+api/vkrss/index.php?id=-1&count=100&include=(new|wall|\d+)&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?global_search=query&count=300&vkrss_access_token=YYYYYYYYY # search posts that contains 'query'
+api/vkrss/index.php?id=club1&allow_embedded_video&vkrss_access_token=YYYYYYYYY   # embed playable videos into RSS items' description
+api/vkrss/index.php?id=-1&count=30&repost_delimiter=<hr><hr>Written by {author}:&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?id=pitertransport&donut&vkrss_access_token=YYYYYYYYY  # RSs feed contains VK Donut posts and regular posts
 ```
 **Note**: one parameter contains special characters in the last example,
 so URL-encoding can be required for the direct call:
@@ -376,13 +464,55 @@ so URL-encoding can be required for the direct call:
    * SOCKS5-прокси — необходимо расширение `cURL`>=7.10,
    * SOCKS4-прокси — необходим PHP>=5.3 с расширением `cURL`>=7.10,
    * SOCKS4A-прокси — необходим PHP>=5.5.23 или PHP>=5.6.7 (включая 7.X) с расширением `cURL`>=7.18.
+* Свой (под)домен и A-запись на IP-адрес сервера, в котором будет запущен данный репозиторий.
 
 В случае каких-либо проблем вместо RSS-ленты выдается страница с HTTP-статусом,
 отличным от 200, и с описанием проблемы в HTTP-заголовке и теле страницы,
-а также создаётся запись в журнале ошибок сервера или интерпретатора.
+а также создаётся запись в журнале ошибок сервера или интерпретатора. \
+Посмотреть логи PHP-сервера можно будет командой (последние 50 записей):
+```sh
+docker compose logs -t -n 50 php
+```
 
+## Инструкция по запуску
 
-## Параметры
+1. Клонируйте репозиторий: `git clone git@github.com:Kenya-West/vkrss.git`;
+2. Заполните файл `.env` контентом из `.env.example` или вставьте из этого блока кода:
+```dotenv
+DOMAIN=                             # Your domain
+EMAIL=                              # E-mail that was set with your domain
+FEED_PORT_HTTP=8081                 # Port to access Feed server without SSL (CAUTION: this is not secure! Use only for testing purposes!)
+FEED_PORT_HTTPS=443                 # Port to access Feed server with SSL
+FEED_PATH=api/vkrss                 # Subpath to access Feed server. Without leading "/" slash. Leave empty by default
+VKRSS_PORT=9900                     # Port to access VKRSS server through NGINX (it adds access token)
+VKRSS_ACCESS_TOKEN=vkrssaccesstoken # Access token to access VKRSS server (NGINX). It's used to protect VKRSS server from unauthorized access
+VK_ACCESS_TOKEN=                    # Access token to access VK API. You can get it from VK API settings
+```
+3. Запустите certbot для получения SSL-сертификатов:
+```sh
+docker compose up -d certbot webserver
+```
+В логах по команде `docker compose logs certbot` должно быть сообщение об успешном получении сертификатов:
+![Успешная установка сертификата для домена](https://media.geeksforgeeks.org/wp-content/uploads/20201101164714/Screenshotfrom20201101162550.png "Успешная установка сертификата для домена")
+
+4. После успешной установки сертификатов раскомментируйте строки, начинающиеся с тройных `### ` в файле `templates/default.conf.template` редактором `nano` или `vi`/`vim`, либо командой:
+```sh
+sed -i 's/### //' templates/default.conf.template
+```
+
+5. Перезапустите NGINX:
+```sh
+docker compose restart webserver
+```
+
+6. Запустите остальное:
+```sh
+docker compose up -d php
+```
+
+5. По умолчанию сервер PHP доступен на порте `9900`, сервер NGINX на `8081` для HTTP и `8082` для HTTPS, если вы не указали иное в файле `.env`.
+
+## Параметры сервера PHP
 Основной скрипт `index.php` принимает следующие GET-параметры.
 
 Пара параметров [`id`](#rus-id) и [`access_token`](#rus-access-token) 
@@ -603,6 +733,26 @@ so URL-encoding can be required for the direct call:
   * `proxy_login` — логин для доступа к прокси-серверу,
   * `proxy_password` — пароль для доступа к прокси-серверу.
 
+## Параметры сервера NGINX
+Параллельно с сервером PHP (по умолчанию его порт: `9900`) запускается также и сервер на NGINX (порты `8081` для HTTP и `8082` для HTTPS).
+
+Его задача: избавить пользователя от необходимости явно указывать `access_token` от standalone-приложения VK, потому что, если его потерять или поменять, то придётся менять все ссылки на подписки в RSS-сервисе/RSS-клиенте, а это неудобно.
+
+Вместо `access_token` данный сервер принимает `vkrss_access_token`, определенный в файле `.env` под строчкой `VKRSS_ACCESS_TOKEN`. Значение по умолчанию: `vkrssaccesstoken`.
+
+После получения запроса сервер перенаправляет его на PHP-сервер с `access_token`, определенным в файле `.env` под строчкой `VK_ACCESS_TOKEN` и получает ленту ВК.
+
+Также сервер будет доступен по пути, определенному в файле `.env` под строчкой `FEED_PATH`. Значение по умолчанию: `api/vkrss`.
+
+Таким образом, к примеру, эти два запроса аналогичны:
+
+```php
+index.php?id=club1&access_token=XXXXXXXXX
+```
+и
+```php
+api/vkrss/index.php?id=club1&vkrss_access_token=YYYYYYYYYY
+```
 
 ## <a name="rus-user-access-token"></a> Как получить бессрочный токен для доступа к стенам, которые доступны своему профилю
 Для серверного доступа предпочтительна [такая схема](https://vk.com/dev/authcode_flow_user):
@@ -669,6 +819,30 @@ index.php?global_search=запрос&count=300&access_token=XXXXXXXXX # поис
 index.php?id=club1&allow_embedded_video&access_token=XXXXXXXXX   # встраивает проигрываемые видеозаписи в описание записи
 index.php?id=-1&count=30&repost_delimiter=<hr><hr>{author} пишет:&access_token=XXXXXXXXX
 index.php?id=pitertransport&donut&access_token=XXXXXXXXX  # Помимо обычных записей, в RSS ленту добавляются записи для донов
+```
+либо аналогичные для сервера с NGINX:
+```php
+api/vkrss/index.php?id=apiclub&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?id=-1&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?id=id1&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?id=club1&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?id=club1&disable_html&vkrss_access_token=YYYYYYYYY   # в данных RSS-ленты отсутстуют HTML-сущности
+api/vkrss/index.php?id=apiclub&count=100&include=рекомендуем&vkrss_access_token=YYYYYYYYY   # выводятся только записи со словом 'рекомендуем'
+api/vkrss/index.php?id=apiclub&count=100&exclude=рекомендуем&vkrss_access_token=YYYYYYYYY   # выводятся только записи без слова 'рекомендуем'
+api/vkrss/index.php?id=apiclub&proxy=localhost:8080&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?id=apiclub&proxy=localhost:8080&proxy_type=https&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?id=apiclub&proxy=https%3A%2F%2Flocalhost:8080&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?id=club1&owner_only&vkrss_access_token=YYYYYYYYY   # выводятся только записи от имени сообщества
+api/vkrss/index.php?id=club1&owner_only&allow_signed=false&vkrss_access_token=YYYYYYYYY   # выводятся только записи от имени сообщества,
+                                                                          # у которых нет подписи
+api/vkrss/index.php?id=club1&non_owner_only&vkrss_access_token=YYYYYYYYY   # выводятся только записи от пользователей (не от имени сообщества)
+api/vkrss/index.php?id=club1&non_owner_only&allow_signed&vkrss_access_token=YYYYYYYYY   # выводятся только записи от имени сообщества,
+                                                                        # у которых есть подпись, и записи от пользователей
+api/vkrss/index.php?id=-1&count=100&include=(рекомендуем|приглашаем|\d+)&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?global_search=запрос&count=300&vkrss_access_token=YYYYYYYYY # поиск записей, содержащих слово "запрос"
+api/vkrss/index.php?id=club1&allow_embedded_video&vkrss_access_token=YYYYYYYYY   # встраивает проигрываемые видеозаписи в описание записи
+api/vkrss/index.php?id=-1&count=30&repost_delimiter=<hr><hr>{author} пишет:&vkrss_access_token=YYYYYYYYY
+api/vkrss/index.php?id=pitertransport&donut&vkrss_access_token=YYYYYYYYY  # Помимо обычных записей, в RSS ленту добавляются записи для донов
 ```
 **Примечание**: в последнем примере при таком вызове напрямую через
 GET-параметры может потребоваться URL-кодирование символов:
