@@ -14,6 +14,7 @@
   about user access token creating.
 * Generating RSS feed for different opened walls based on 
   [global search](#eng-global-search) results.
+* Generating RSS [news feed](#eng-newsfeed) of access token's owner.
 * Feeding [arbitrary number](#eng-count) of posts.
 * Posts filtering [by author](#eng-owner-only): all posts, posts by community/profile owner
   only or all posts except posts by community/profile owner.
@@ -33,7 +34,7 @@
 
 
 ## Requirements
-* PHP>=5.3 (5.4.X, 5.5.X, 5.6.X, 7.X, 8.X included)
+* PHP>=5.3 (5.4.X, 5.5.X, 5.6.X, 7.X, 8.X are included)
   with installed `mbstring`, `json`, `pcre`, `openssl` bundled extensions.
 * Script prefers the built-in tools for the requests.
   If `allow_url_fopen` parameter is disabled in the PHP configuration
@@ -99,10 +100,11 @@ docker compose up -d php webserver
 Main `index.php` script accepts the below GET-parameters.
 
 [`id`](#eng-id) and [`access_token`](#eng-access-token) 
-**OR** [`global_search`](#eng-global-search) and [`access_token`](#eng-access-token) parameters 
-are required, another parameters are optional.
+**OR** [`global_search`](#eng-global-search) and [`access_token`](#eng-access-token)
+**OR** [`news_feed`](#eng-newsfeed) and [`access_token`](#eng-access-token)
+parameters are required, another parameters are optional.
 
-[`id`](#eng-id) and [`global_search`](#eng-global-search) parameters **cannot** be used together.
+[`id`](#eng-id), [`global_search`](#eng-global-search) and [`news_feed`](#eng-newsfeed) parameters **cannot** be used together.
 
 * <a name="eng-id"></a> [conditionally required]
   `id` is short name, ID number (community ID is started with `-` sign)
@@ -120,7 +122,16 @@ are required, another parameters are optional.
   `global_search` is an arbitrary text search query to lookup on all **opened** walls.
   It uses internal VK algorithms to search posts that're published by wall's **owner**.
   Search results are the same as on [this search page](https://vk.com/search?c[section]=statuses).
-  
+
+* <a name="eng-newsfeed"></a> [conditionally required]
+  `news_type` takes one of the values either `recent` (recent news) or `recommended` (VK recommended news).
+  It generates an RSS news feed of the access token's owner that's shown on [this news page](https://vk.com/feed).
+
+  News feed contains a **walls posts only**, the rest of news are ignored
+  (such as new friends of friends, new photos in friends' profiles and so on).
+
+  This parameter **requires** a user' access token with `wall` and `friends` permissions.
+
 * <a name="eng-access-token"></a> [required] `access_token` is
   * either service token that's specified in the app settings
     (you can create your own standalone application
@@ -307,33 +318,35 @@ preferred getting user access token for the server side access to the walls.
 
 1. Create your own standalone application [here](https://vk.com/editapp?act=create).
    Created app can be off after token generation because it does not matter for the API requests.
+
+   **IMPORTANT NOTE**: currently, [newly created apps](https://id.vk.com/business/go)
+   require passport' data or organisation' data in the developer' dashboard
+   in order to generate access tokens with required permissions.
+
+   However, [old apps](https://vk.com/apps?act=manage) still provide the ability
+   to generate access tokens with required permissions.
+
 2. Authorize necessary account on vk.com and go to the next URL
 
-   `https://oauth.vk.com/authorize?client_id=APP_ID&display=page&redirect_uri&scope=offline,video&response_type=code&v=5.131`
+   `https://oauth.vk.com/authorize?client_id=APP_ID&scope=offline,video,wall,friends&redirect_uri=https%3A%2F%2Foauth.vk.com%2Fblank.html&display=page&response_type=token&revoke=1`
 
    where replace `APP_ID` with application ID that's specified in the app settings.
+  
+   The listed permissions in the `scope` parameter are as the follows:
+   * `offline` is required to get endless access token;
+   * `video` is only required for the [`allow_embedded_video`](#eng-videos) option;
+   * `wall` and `friends` are only required for the [`news_type`](#eng-newsfeed) option.
+   
+   Therefore, if you do not want to use some features then the relevant permissions can be omitted.
 
-   The permission `video` is only required when [`allow_embedded_video`](#eng-videos) option is required.
-   Therefore if you do not want use this feature then this permission can be omitted.
+3. Confirm permissions. The result URL in the address bar
+   contains sought-for access token after the `access_token=` string.
 
-3. Confirm permissions. Remember the value of GET-parameter `code`
-   of the result URL in the browser address bar.
-
-4. Go to the URL
-
-   `https://oauth.vk.com/access_token?client_id=APP_ID&client_secret=APP_SECRET&redirect_uri&code=AUTH_CODE`
-
-   where replace `APP_ID` with application ID, replace `APP_SECRET`
-   with secure key that's specified in the app settings,
-   replace `AUTH_CODE` with `code` value from the previous step.
-
-   The result JSON-response contains sought-for access token.
-
-Bonus: created app keeps API calls statistics so you can see it.
+Bonus: created app keeps API calls statistics, so you can see it.
 
 **Warning**: If user terminates all sessions in him security settings
-then him access token becomes invalid; in that case, user must create
-new access token repeating steps 2-4.
+then all him access tokens becomes invalid; in that case, user must create
+new access token by repeating steps 2-4.
 
 
 ## Usage Examples
@@ -354,38 +367,42 @@ index.php?id=club1&owner_only&allow_signed=false&access_token=XXXXXXXXX   # feed
 index.php?id=club1&non_owner_only&access_token=XXXXXXXXX   # feed contains only posts by users
 index.php?id=club1&non_owner_only&allow_signed&access_token=XXXXXXXXX   # feed contains only posts by users
                                                                         # and community posts with signature
-index.php?id=-1&count=100&include=(new|wall|\d+)&access_token=XXXXXXXXX
-index.php?global_search=query&count=300&access_token=XXXXXXXXX # search posts that contains 'query'
 index.php?id=club1&allow_embedded_video&access_token=XXXXXXXXX   # embed playable videos into RSS items' description
 index.php?id=-1&count=30&repost_delimiter=<hr><hr>Written by {author}:&access_token=XXXXXXXXX
 index.php?id=pitertransport&donut&access_token=XXXXXXXXX  # RSs feed contains VK Donut posts and regular posts
+index.php?news_type=recent&count=25&access_token=XXXXXXXXX # 25 recent posts of the news feed
+index.php?news_type=recommended&count=30&access_token=XXXXXXXXX # 30 VK recommended posts of the news feed
+index.php?global_search=query&count=300&access_token=XXXXXXXXX # search posts that contains 'query'
+index.php?id=-1&count=100&include=(new|wall|\d+)&access_token=XXXXXXXXX
 ```
-or the same for NGINX server:
+or the same for Caddy server:
 ```php
-api/vkrss/index.php?id=apiclub&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?id=-1&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?id=id1&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?id=club1&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?id=club1&disable_html&vkrss_access_token=YYYYYYYYY   # no HTML formatting in RSS item descriptions
-api/vkrss/index.php?id=apiclub&count=100&include=newsfeed&vkrss_access_token=YYYYYYYYY   # feed contains only posts with substring 'newsfeed'
-api/vkrss/index.php?id=apiclub&count=100&exclude=newsfeed&vkrss_access_token=YYYYYYYYY   # feed contains only posts without substring 'newsfeed'
-api/vkrss/index.php?id=apiclub&proxy=localhost:8080&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?id=apiclub&proxy=localhost:8080&proxy_type=https&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?id=apiclub&proxy=https%3A%2F%2Flocalhost:8080&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?id=club1&owner_only&vkrss_access_token=YYYYYYYYY   # feed contains only posts by community
-api/vkrss/index.php?id=club1&owner_only&allow_signed=false&vkrss_access_token=YYYYYYYYY   # feed contains only posts by community
+api/vkrss/index.php?id=apiclub&access_token=XXXXXXXXX
+api/vkrss/index.php?id=-1&access_token=XXXXXXXXX
+api/vkrss/index.php?id=id1&access_token=XXXXXXXXX
+api/vkrss/index.php?id=club1&access_token=XXXXXXXXX
+api/vkrss/index.php?id=club1&disable_html&access_token=XXXXXXXXX   # no HTML formatting in RSS item descriptions
+api/vkrss/index.php?id=apiclub&count=100&include=newsfeed&access_token=XXXXXXXXX   # feed contains only posts with substring 'newsfeed'
+api/vkrss/index.php?id=apiclub&count=100&exclude=newsfeed&access_token=XXXXXXXXX   # feed contains only posts without substring 'newsfeed'
+api/vkrss/index.php?id=apiclub&proxy=localhost:8080&access_token=XXXXXXXXX
+api/vkrss/index.php?id=apiclub&proxy=localhost:8080&proxy_type=https&access_token=XXXXXXXXX
+api/vkrss/index.php?id=apiclub&proxy=https%3A%2F%2Flocalhost:8080&access_token=XXXXXXXXX
+api/vkrss/index.php?id=club1&owner_only&access_token=XXXXXXXXX   # feed contains only posts by community
+api/vkrss/index.php?id=club1&owner_only&allow_signed=false&access_token=XXXXXXXXX   # feed contains only posts by community
                                                                           # that's without signature
-api/vkrss/index.php?id=club1&non_owner_only&vkrss_access_token=YYYYYYYYY   # feed contains only posts by users
-api/vkrss/index.php?id=club1&non_owner_only&allow_signed&vkrss_access_token=YYYYYYYYY   # feed contains only posts by users
+api/vkrss/index.php?id=club1&non_owner_only&access_token=XXXXXXXXX   # feed contains only posts by users
+api/vkrss/index.php?id=club1&non_owner_only&allow_signed&access_token=XXXXXXXXX   # feed contains only posts by users
                                                                         # and community posts with signature
-api/vkrss/index.php?id=-1&count=100&include=(new|wall|\d+)&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?global_search=query&count=300&vkrss_access_token=YYYYYYYYY # search posts that contains 'query'
-api/vkrss/index.php?id=club1&allow_embedded_video&vkrss_access_token=YYYYYYYYY   # embed playable videos into RSS items' description
-api/vkrss/index.php?id=-1&count=30&repost_delimiter=<hr><hr>Written by {author}:&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?id=pitertransport&donut&vkrss_access_token=YYYYYYYYY  # RSs feed contains VK Donut posts and regular posts
+api/vkrss/index.php?id=club1&allow_embedded_video&access_token=XXXXXXXXX   # embed playable videos into RSS items' description
+api/vkrss/index.php?id=-1&count=30&repost_delimiter=<hr><hr>Written by {author}:&access_token=XXXXXXXXX
+api/vkrss/index.php?id=pitertransport&donut&access_token=XXXXXXXXX  # RSs feed contains VK Donut posts and regular posts
+api/vkrss/index.php?news_type=recent&count=25&access_token=XXXXXXXXX # 25 recent posts of the news feed
+api/vkrss/index.php?news_type=recommended&count=30&access_token=XXXXXXXXX # 30 VK recommended posts of the news feed
+api/vkrss/index.php?global_search=query&count=300&access_token=XXXXXXXXX # search posts that contains 'query'
+api/vkrss/index.php?id=-1&count=100&include=(new|wall|\d+)&access_token=XXXXXXXXX
 ```
-**Note**: one parameter contains special characters in the last example,
-so URL-encoding can be required for the direct call:
+**Note**: one parameter contains special characters in the two last examples,
+so URL-encoding can be required for the direct call, e.g.:
 ```index.php?id=-1&count=100&include=(new%7Cwall%7C%5Cd%2B)&access_token=XXXXXXXXX```
 
 
@@ -428,6 +445,7 @@ so URL-encoding can be required for the direct call:
   [Ниже описан один из способов получения токена](#rus-user-access-token).
 * Получение RSS-ленты, содержащей записи с различных открытых стен, 
   которые соответствуют [глобальному поисковому запросу](#rus-global-search).
+* Получение RSS-ленты [новостей](#rus-newsfeed) владельца токена.
 * Получение [произвольного количества](#rus-count) записей со стены.
 * Получение записей, [опубликованных](#rus-owner-only) от кого угодно, от имени
   сообщества/владельца страницы или ото всех, кроме сообщества/владельца страницы.
@@ -517,13 +535,15 @@ docker compose up -d php
 
 Пара параметров [`id`](#rus-id) и [`access_token`](#rus-access-token) 
 **ИЛИ** [`global_search`](#rus-global-search) и [`access_token`](#rus-access-token) 
+**ИЛИ** [`news_type`](#rus-newsfeed) и [`access_token`](#rus-access-token)
 обязательна, остальные параметры необязательны.
 
-Нельзя одновременно использовать параметры [`id`](#rus-id) и [`global_search`](#rus-global-search).
+Одновременно можно использовать только один из параметров
+[`id`](#rus-id), [`global_search`](#rus-global-search) или [`news_type`](#rus-newsfeed).
 
 * <a name="rus-id"></a> [условно обязательный] `id` — короткое название, ID-номер (в случае сообщества ID начинается со знака `-`)
   или полный идентификатор человека/сообщества (в виде idXXXX, clubXXXX, publicXXXX, eventXXXX), 
-  для которого будет строиться RSS-лента.
+  для стены которого будет строиться RSS-лента.
   Примеры допустимых значений параметра `id`:
   * `123456`, `id123456` — оба значения указывают на одну и ту же страницу пользователя с ID 123456,
   * `-123456`, `club123456` — оба значения указывают на одну и ту же группу с ID 123456,
@@ -539,6 +559,15 @@ docker compose up -d php
   записи со всех открытых стен, опубликованные владельцем профиля пользователя 
   или от имени сообщества. Результаты поиска аналогичны результатам 
   [на этой поисковой странице](https://vk.com/search?c%5Bsection%5D=statuses).
+
+* <a name="rus-newsfeed"></a> [условно обязательный] `news_type` —
+  тип новостной ленты владельца ключа доступа: значение
+  либо `recent` (последние новости), либо `recommended` (рекомендуемые новости)
+  — новости, которые отображаются [на странице новостей](https://vk.com/feed)
+  и только те, что являются **записями** на чьей-либо стене (все прочие новости,
+  такие как новые друзья друзей, новые фотографии в профилях друзей и т.п., будут проигнорированы).
+
+  Для использования этого параметра у ключа доступа пользователя обязательно наличие прав `wall` и `friends`.
 
 * <a name="rus-access-token"></a> [обязательный] `access_token` —
    * Либо сервисный ключ доступа, который указан в настройках приложения
@@ -761,31 +790,30 @@ api/vkrss/index.php?id=club1&vkrss_access_token=YYYYYYYYYY
    По желанию после генерации ключей в настройках приложения можно изменить состояние
    на «Приложение отключено» — это никак не помешает генерации RSS-ленты.
 
+   **ВАЖНОЕ**: в настоящее время у [новосозданных приложений](https://id.vk.com/business/go) требуется ввод паспортных данных
+   или данных об организации в личном кабинете разработчика, чтобы приложение могло получать доступ к нужным правам.
+
+   При этом [старые standalone-приложения](https://vk.com/apps?act=manage) по-прежнему работают
+   и дают возможность генерировать ключ доступа со всеми нужными правами.
+
 2. После авторизации под нужным профилем пройти по ссылке:
 
-   `https://oauth.vk.com/authorize?client_id=APP_ID&display=page&redirect_uri&scope=offline,video&response_type=code&v=5.131`
+   `https://oauth.vk.com/authorize?client_id=APP_ID&scope=offline,video,wall,friends&redirect_uri=https%3A%2F%2Foauth.vk.com%2Fblank.html&display=page&response_type=token&revoke=1`
 
    где вместо `APP_ID` подставить ID созданного приложения — его можно увидеть,
    например, в настройках приложения.
 
-   Разрешение `video` необходимо лишь в случае включения параметра [`allow_embedded_video`](#rus-videos),
-   поэтому если эта функциональность не будет использоваться, то можно его убрать.
+   Указанные в `scope` права доступа включают в себя следующие:
+   * `offline` — обязательно для формирования бессрочного ключа доступа,
+   * `video` — для работы параметра [`allow_embedded_video`](#rus-videos),
+   * `wall` и `friends` — для работы параметра [`news_type`](#rus-newsfeed).
+   
+   Если указанные параметры скрипта не будут использоваться, то соответствующие права можно убрать из ссылки.
 
-3. Подтвердить права. В результате в адресной строке будет GET-параметр `code`.
+3. Подтвердить права. В результате в адресной строке будет указан ключ доступа `access_token` —
+   именно это значение и следует использовать в качестве GET-параметра скрипта, генерирующего RSS-ленту.
 
-4. Пройти по ссылке:
-
-   `https://oauth.vk.com/access_token?client_id=APP_ID&client_secret=APP_SECRET&redirect_uri&code=AUTH_CODE`
-
-   где `APP_ID` — ID созданного приложения,
-   `APP_SECRET` — защищенный ключ приложения (можно увидеть в настройках приложения),
-   `AUTH_CODE` — значение параметра `code` из предыдущего шага.
-
-   В результате будет выдан JSON-отклик с искомым `access_token` —
-   именно это значение и следует использовать
-   в качестве GET-параметра скрипта, генерирующего RSS-ленту.
-
-5. При первом использовании токена с IP адреса, отличного от того,
+4. При первом использовании токена с IP адреса, отличного от того,
    с которого получался токен, может выскочить ошибка "API Error 17: Validation required",
    требующая валидации: для этого необходимо пройти по первой ссылке из описания ошибки
    и ввести недостающие цифры номера телефона профиля.
@@ -793,7 +821,8 @@ api/vkrss/index.php?id=club1&vkrss_access_token=YYYYYYYYYY
 В качестве бонуса в статистике созданного приложения можно смотреть частоту запросов к API.
 
 **Внимание!** Если в настройках безопасности профиля будут завершены сессии приложения,
-то токен станет невалидным — нужно сформировать новый токен, повторив пункты 2-4.
+то все сгенерированные через это приложение токены станут невалидными —
+нужно сформировать новый токен, повторив пункты 2-4.
 
 
 ## Примеры использования:
@@ -814,38 +843,42 @@ index.php?id=club1&owner_only&allow_signed=false&access_token=XXXXXXXXX   # вы
 index.php?id=club1&non_owner_only&access_token=XXXXXXXXX   # выводятся только записи от пользователей (не от имени сообщества)
 index.php?id=club1&non_owner_only&allow_signed&access_token=XXXXXXXXX   # выводятся только записи от имени сообщества,
                                                                         # у которых есть подпись, и записи от пользователей
-index.php?id=-1&count=100&include=(рекомендуем|приглашаем|\d+)&access_token=XXXXXXXXX
-index.php?global_search=запрос&count=300&access_token=XXXXXXXXX # поиск записей, содержащих слово "запрос"
 index.php?id=club1&allow_embedded_video&access_token=XXXXXXXXX   # встраивает проигрываемые видеозаписи в описание записи
 index.php?id=-1&count=30&repost_delimiter=<hr><hr>{author} пишет:&access_token=XXXXXXXXX
 index.php?id=pitertransport&donut&access_token=XXXXXXXXX  # Помимо обычных записей, в RSS ленту добавляются записи для донов
+index.php?news_type=recent&count=25&access_token=XXXXXXXXX # 25 самых свежих записей из новостной ленты
+index.php?news_type=recommended&count=30&access_token=XXXXXXXXX # 30 рекомендуемых записей из новостной ленты
+index.php?global_search=запрос&count=300&access_token=XXXXXXXXX # поиск записей, содержащих слово "запрос"
+index.php?id=-1&count=100&include=(рекомендуем|приглашаем|\d+)&access_token=XXXXXXXXX
 ```
-либо аналогичные для сервера с NGINX:
+либо аналогичные для сервера с Caddy:
 ```php
-api/vkrss/index.php?id=apiclub&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?id=-1&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?id=id1&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?id=club1&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?id=club1&disable_html&vkrss_access_token=YYYYYYYYY   # в данных RSS-ленты отсутстуют HTML-сущности
-api/vkrss/index.php?id=apiclub&count=100&include=рекомендуем&vkrss_access_token=YYYYYYYYY   # выводятся только записи со словом 'рекомендуем'
-api/vkrss/index.php?id=apiclub&count=100&exclude=рекомендуем&vkrss_access_token=YYYYYYYYY   # выводятся только записи без слова 'рекомендуем'
-api/vkrss/index.php?id=apiclub&proxy=localhost:8080&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?id=apiclub&proxy=localhost:8080&proxy_type=https&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?id=apiclub&proxy=https%3A%2F%2Flocalhost:8080&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?id=club1&owner_only&vkrss_access_token=YYYYYYYYY   # выводятся только записи от имени сообщества
-api/vkrss/index.php?id=club1&owner_only&allow_signed=false&vkrss_access_token=YYYYYYYYY   # выводятся только записи от имени сообщества,
+api/vkrss/index.php?id=apiclub&access_token=XXXXXXXXX
+api/vkrss/index.php?id=-1&access_token=XXXXXXXXX
+api/vkrss/index.php?id=id1&access_token=XXXXXXXXX
+api/vkrss/index.php?id=club1&access_token=XXXXXXXXX
+api/vkrss/index.php?id=club1&disable_html&access_token=XXXXXXXXX   # в данных RSS-ленты отсутстуют HTML-сущности
+api/vkrss/index.php?id=apiclub&count=100&include=рекомендуем&access_token=XXXXXXXXX   # выводятся только записи со словом 'рекомендуем'
+api/vkrss/index.php?id=apiclub&count=100&exclude=рекомендуем&access_token=XXXXXXXXX   # выводятся только записи без слова 'рекомендуем'
+api/vkrss/index.php?id=apiclub&proxy=localhost:8080&access_token=XXXXXXXXX
+api/vkrss/index.php?id=apiclub&proxy=localhost:8080&proxy_type=https&access_token=XXXXXXXXX
+api/vkrss/index.php?id=apiclub&proxy=https%3A%2F%2Flocalhost:8080&access_token=XXXXXXXXX
+api/vkrss/index.php?id=club1&owner_only&access_token=XXXXXXXXX   # выводятся только записи от имени сообщества
+api/vkrss/index.php?id=club1&owner_only&allow_signed=false&access_token=XXXXXXXXX   # выводятся только записи от имени сообщества,
                                                                           # у которых нет подписи
-api/vkrss/index.php?id=club1&non_owner_only&vkrss_access_token=YYYYYYYYY   # выводятся только записи от пользователей (не от имени сообщества)
-api/vkrss/index.php?id=club1&non_owner_only&allow_signed&vkrss_access_token=YYYYYYYYY   # выводятся только записи от имени сообщества,
+api/vkrss/index.php?id=club1&non_owner_only&access_token=XXXXXXXXX   # выводятся только записи от пользователей (не от имени сообщества)
+api/vkrss/index.php?id=club1&non_owner_only&allow_signed&access_token=XXXXXXXXX   # выводятся только записи от имени сообщества,
                                                                         # у которых есть подпись, и записи от пользователей
-api/vkrss/index.php?id=-1&count=100&include=(рекомендуем|приглашаем|\d+)&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?global_search=запрос&count=300&vkrss_access_token=YYYYYYYYY # поиск записей, содержащих слово "запрос"
-api/vkrss/index.php?id=club1&allow_embedded_video&vkrss_access_token=YYYYYYYYY   # встраивает проигрываемые видеозаписи в описание записи
-api/vkrss/index.php?id=-1&count=30&repost_delimiter=<hr><hr>{author} пишет:&vkrss_access_token=YYYYYYYYY
-api/vkrss/index.php?id=pitertransport&donut&vkrss_access_token=YYYYYYYYY  # Помимо обычных записей, в RSS ленту добавляются записи для донов
+api/vkrss/index.php?id=club1&allow_embedded_video&access_token=XXXXXXXXX   # встраивает проигрываемые видеозаписи в описание записи
+api/vkrss/index.php?id=-1&count=30&repost_delimiter=<hr><hr>{author} пишет:&access_token=XXXXXXXXX
+api/vkrss/index.php?id=pitertransport&donut&access_token=XXXXXXXXX  # Помимо обычных записей, в RSS ленту добавляются записи для донов
+api/vkrss/index.php?news_type=recent&count=25&access_token=XXXXXXXXX # 25 самых свежих записей из новостной ленты
+api/vkrss/index.php?news_type=recommended&count=30&access_token=XXXXXXXXX # 30 рекомендуемых записей из новостной ленты
+api/vkrss/index.php?global_search=запрос&count=300&access_token=XXXXXXXXX # поиск записей, содержащих слово "запрос"
+api/vkrss/index.php?id=-1&count=100&include=(рекомендуем|приглашаем|\d+)&access_token=XXXXXXXXX
 ```
-**Примечание**: в последнем примере при таком вызове напрямую через
-GET-параметры может потребоваться URL-кодирование символов:
+**Примечание**: в последних двух примерах при таком вызове напрямую через
+GET-параметры может потребоваться URL-кодирование символов у параметров `global_search`, `include` и им подобным:
 ```index.php?id=-1&count=100&include=(%D1%80%D0%B5%D0%BA%D0%BE%D0%BC%D0%B5%D0%BD%D0%B4%D1%83%D0%B5%D0%BC%7C%D0%BF%D1%80%D0%B8%D0%B3%D0%BB%D0%B0%D1%88%D0%B0%D0%B5%D0%BC%7C%5Cd%2B)&access_token=XXXXXXXXX```
 
 ## Возможные проблемы и их решения
