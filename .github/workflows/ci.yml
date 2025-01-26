@@ -1,0 +1,35 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+
+            
+      - name: Replace .env file
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATEKEY }}
+          script: |
+            cd ${{ secrets.PROJECT_DIRNAME }}
+            docker-compose down ${{ secrets.PROJECT_DOCKERCONTAINERNAME }}
+            rm -f .env
+            echo "${{ secrets.ENV_CONTENT  }}" | base64 --decode > .env
+
+      - name: copy file via ssh password
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATEKEY }}
+          source: "src/FeedWriter.php,src/index.php,src/utils.php,src/Vk2rss.php,docker-compose.yml"
+          target: ${{ secrets.PROJECT_DIRNAME }}
