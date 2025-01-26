@@ -132,6 +132,8 @@ parameters are required, another parameters are optional.
 
   This parameter **requires** a user' access token with `wall` and `friends` permissions.
 
+  You can filter `recent` news by user, community or custom news list using [`news_sources`](#eng-news-sources) parameter.
+
 * <a name="eng-access-token"></a> [required] `access_token` is
   * either service token that's specified in the app settings
     (you can create your own standalone application
@@ -148,6 +150,23 @@ parameters are required, another parameters are optional.
     
    If you uses [`global_search`](#eng-global-search) then service and user access tokens give equivalent results,
    i.e. only opened walls is processed.
+
+* <a name="eng-news-sources"></a> `news_sources` is a comma-separated list of `recent` news sources.
+
+  This filter works with [`news_type=recent`](#eng-newsfeed) parameter only.
+
+  Each value has one of the following format:
+  * `friends` outputs news posts of each friend;
+  * `groups` outputs news posts of each community from the current user's subscription list;
+  * `pages` outputs news posts of each public page from the current user's subscription list;
+  * `following` outputs news posts of each following user of the current user;
+  * `list<list_id>` outputs news posts from the personal source' list (created by the current user);
+  * `<user_id>` or `u<user_id>` outputs news posts by user `<user_id>`;
+  * `-<group_id>` or `g<group_id>` outputs news posts by community `<group_id>`.
+
+  **For example**, `news_sources=u1,-2,following,list3` outputs recent posts from news feed
+  that's published by user `id1`, community `club2`, following users or posts from the personal news list with ID `3`.
+
 * <a name="eng-count"></a> `count` is a number of processing posts 
   starting with the latest published post.
   It's arbitrary amount including more than 100.
@@ -371,6 +390,7 @@ index.php?id=club1&allow_embedded_video&access_token=XXXXXXXXX   # embed playabl
 index.php?id=-1&count=30&repost_delimiter=<hr><hr>Written by {author}:&access_token=XXXXXXXXX
 index.php?id=pitertransport&donut&access_token=XXXXXXXXX  # RSs feed contains VK Donut posts and regular posts
 index.php?news_type=recent&count=25&access_token=XXXXXXXXX # 25 recent posts of the news feed
+index.php?news_type=recent&news_sources=list1&count=20&access_token=XXXXXXXXX # 20 recent posts of the custom news feed with ID 1
 index.php?news_type=recommended&count=30&access_token=XXXXXXXXX # 30 VK recommended posts of the news feed
 index.php?global_search=query&count=300&access_token=XXXXXXXXX # search posts that contains 'query'
 index.php?id=-1&count=100&include=(new|wall|\d+)&access_token=XXXXXXXXX
@@ -569,6 +589,9 @@ docker compose up -d php
 
   Для использования этого параметра у ключа доступа пользователя обязательно наличие прав `wall` и `friends`.
 
+  С помощью параметра [`news_sources`](#rus-news-sources) можно получить последние новости (`recent`)
+  от отдельных людей, сообществ или из собственных списков.
+
 * <a name="rus-access-token"></a> [обязательный] `access_token` —
    * Либо сервисный ключ доступа, который указан в настройках приложения
      (создать собственное standalone-приложение можно
@@ -588,6 +611,25 @@ docker compose up -d php
    при использовании сервисного ключа доступа и при использовании ключа 
    доступа пользователя одинаковы, 
    т.е. в любом случае все записи будут лишь с открытых стен.
+
+* <a name="rus-news-sources"></a> `news_sources` — список пользователей, сообществ или идентификаторов списков новостей.
+  При использовании этого параметра будут выводиться новости только от перечисленных источников.
+
+  Использование этого фильтра допустимо только в комбинации с параметром [`news_type=recent`](#rus-newsfeed).
+
+  Список представляет собой перечень одного или нескольких значений, разделенных запятой,
+  каждое из которых имеет один из следующих форматов:
+  * `friends` — новостные записи ото всех друзей;
+  * `groups` — новостные записи всех сообществ, на которые подписан текущий пользователь;
+  * `pages` — новостные записи всех публичных страниц, на которые подписан текущий пользователь;
+  * `following` — новостные записи пользователей, на которых подписан текущий пользователь;
+  * `list<list_id>` — собственный список новостей с идентификатором `<list_id>`, созданный пользователем;
+  * `<user_id>` или `u<user_id>` — новостные записи от пользователя с идентификатором `<user_id>`;
+  * `-<group_id>` или `g<group_id>` — новостные записи от сообщества с идентификатором `<group_id>`.
+
+  **Пример:** `news_sources=u1,-2,following,list3` — выводит только те записи из новостной ленты, которые под авторством
+  либо пользователя `id1`, либо сообщества `club2`, либо пользователей, на которых подписан текущий пользователь,
+  либо новости из персонального списка номер `3`, созданного текущим пользователем в своем профиле.
 
 * <a name="rus-count"></a> `count` — количество обрабатываемых записей, 
   начиная с последней опубликованной
@@ -847,6 +889,8 @@ index.php?id=club1&allow_embedded_video&access_token=XXXXXXXXX   # встраи�
 index.php?id=-1&count=30&repost_delimiter=<hr><hr>{author} пишет:&access_token=XXXXXXXXX
 index.php?id=pitertransport&donut&access_token=XXXXXXXXX  # Помимо обычных записей, в RSS ленту добавляются записи для донов
 index.php?news_type=recent&count=25&access_token=XXXXXXXXX # 25 самых свежих записей из новостной ленты
+index.php?news_type=recent&news_sources=list1&count=20&access_token=XXXXXXXXX # 20 самых свежих записей из самостоятельно
+                                                                              # созданной новостной ленты под идентификатором 1
 index.php?news_type=recommended&count=30&access_token=XXXXXXXXX # 30 рекомендуемых записей из новостной ленты
 index.php?global_search=запрос&count=300&access_token=XXXXXXXXX # поиск записей, содержащих слово "запрос"
 index.php?id=-1&count=100&include=(рекомендуем|приглашаем|\d+)&access_token=XXXXXXXXX
