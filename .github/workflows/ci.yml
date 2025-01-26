@@ -41,4 +41,5 @@ jobs:
           key: ${{ secrets.SSH_PRIVATEKEY }}
           script: |
             cd ${{ secrets.PROJECT_DIRNAME }}
+            chmod -R 775 src/
             docker-compose up -d ${{ secrets.PROJECT_DOCKERCONTAINERNAME }}
