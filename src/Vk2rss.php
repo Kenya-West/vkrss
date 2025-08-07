@@ -37,7 +37,7 @@ class Vk2rss
     const TEXTUAL_LINK_PATTERN = '@(?:\[((?:https?://)?(?:m\.)?vk\.com/[^|]*)\|([^\]]+)\]|(\s*)\b(https?://\S+?)(?=[.,!?;:»”’"]?(?:\s|$))|(\()(https?://\S+?)(\))|(\([^(]*?)(\s*)\b(\s*https?://\S+?)([.,!?;:»”’"]?\s*\)))@u';
     const TEXTUAL_LINK_REPLACE_PATTERN = '$3$5$8$9<a href=\'$1$4$6${10}\'>$2$4$6${10}</a>$7${11}';
     const TEXTUAL_LINK_REMOVE_PATTERN = '$2$5$8';
-    const EMPTY_STRING_PATTERN = '@^(?:[\s ]*(?:<br/?>|\n)+[\s ]*)*$@u';
+    const EMPTY_STRING_PATTERN = '@^(?:[\s ]*[\r\n]+[\s ]*)*$@u';
 
     /**
      * Default title value when no text in the post
@@ -574,7 +574,7 @@ class Vk2rss
 
     protected function extractDescription(&$description, &$videos, $post, &$profiles, &$groups)
     {
-        $par_split_regex = '@[\s ]*?(?:<br/?>|\n)+[\s ]*?@u'; # PHP 5.2.X: \s does not contain non-break space
+        $par_split_regex = '@[\s ]*?[\r\n]+[\s ]*?@u'; # PHP 5.2.X: \s does not contain non-break space
 
         if (preg_match(self::EMPTY_STRING_PATTERN, $post->text) === 0) {
             $post_text = htmlspecialchars($post->text, ENT_NOQUOTES);
@@ -739,10 +739,10 @@ class Vk2rss
                             $content[] = $video_url;
                         } else {
                             if ($playable) {
-                                $content[] = "<iframe src='${video_url}'>${video_url}</iframe>";
+                                $content[] = "<iframe src='{$video_url}'>{$video_url}</iframe>";
                             } else {
                                 list($preview_src, $_) = $this->getPreviewAndOriginal($attachment->video->image);
-                                $content[] = "<a href='${video_url}'><img src='{$preview_src}'/></a>";
+                                $content[] = "<a href='{$video_url}'><img src='{$preview_src}'/></a>";
                             }
                         }
                         $description = array_merge($description, $content, $video_description);
@@ -848,7 +848,7 @@ class Vk2rss
                 }
                 $default_count = 100;
                 if (!empty($offset)) {
-                    $url .= "&offset=${offset}";
+                    $url .= "&offset={$offset}";
                 }
                 if ($donut) {
                     $url .= "&filter=donut";
@@ -858,7 +858,7 @@ class Vk2rss
                 $url .= "&q=" . urlencode($this->global_search);
                 $default_count = 200;
                 if (!empty($offset)) {
-                    $url .= "&start_from=${offset}";
+                    $url .= "&start_from={$offset}";
                 }
                 break;
             case "newsfeed.getRecommended":
@@ -869,20 +869,20 @@ class Vk2rss
                     $params['source_ids'] = $this->news_sources;
                 }
                 if (!empty($offset)) {
-                    $url .= "&start_from=${offset}";
+                    $url .= "&start_from={$offset}";
                 }
                 break;
             case "video.get":
                 $default_count = 200;
                 if (!empty($offset)) {
-                    $url .= "&offset=${offset}";
+                    $url .= "&offset={$offset}";
                 }
                 break;
             default:
-                throw new Exception("Passed unsupported VK API method name '${api_method}'", 400);
+                throw new Exception("Passed unsupported VK API method name '{$api_method}'", 400);
         }
         foreach ($params as $key => $value) {
-            $url .= "&${key}=${value}";
+            $url .= "&{$key}={$value}";
         }
 
         if ($api_method !== "users.get") {
@@ -902,7 +902,7 @@ class Vk2rss
             return json_decode($content);
         } catch (Exception $exc) {
             $this->connector->closeConnection();
-            throw new Exception("Failed to get content of URL ${url}: " . $exc->getMessage(), $exc->getCode());
+            throw new Exception("Failed to get content of URL {$url}: " . $exc->getMessage(), $exc->getCode());
         }
     }
 
